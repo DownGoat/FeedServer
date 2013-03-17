@@ -35,9 +35,9 @@ SQLAlchemy			            http://www.sqlalchemy.org/
 To create the database first edit the settings in config.py, then open the python interpreter in FeedServer
 directory and do:
 
->>> from feedserver import database
->>> database.init_db()
->>> 
+from feedserver import database
+database.init_db()
+
 
 After that you will need to enter any feeds you wish to monitor into the feed table.
 
