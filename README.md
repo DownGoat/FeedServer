@@ -36,6 +36,7 @@ To create the database first edit the settings in config.py, then open the pytho
 directory and do:
 
 from feedserver import database
+
 database.init_db()
 
 
