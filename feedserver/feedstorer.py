@@ -15,6 +15,16 @@ logger = logging.getLogger(config.get("log_app"))
 
 
 def add_entry(entry, feed_id):
+    """
+    Adds a entry to the database. The function will check if the entry already is in the DB. If it is and last updated
+    field is different from before the entry will be updated.
+
+    :param entry: The entry to add.
+
+    :param feed_id: The unique feed ID.
+
+    :return: This function does not return anything.
+    """
     stored_ent = db_session.query(Entry).filter_by(link=entry.get("link")).first()
 
     #Even if it is in db it might be updated since last time.
