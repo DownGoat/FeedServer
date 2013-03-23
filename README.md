@@ -6,6 +6,13 @@ The project was started after Google announced the death of Google Reader, which
 be the back end of a similar type of application, although currently it is not yet there. As for now it is a hobby
 project and will continue to be so for quite a while.
 
+TODO
+====
+It needs more testing firstly, a lot of cases has not been tested yet, epsecially how it will preform when encountering 
+malformed feeds, unicode (japanese/chinese characters), and security. All of theese needs to be tested to see how the 
+application preforms. The plan is todo some of the testing when the PyFeedReader is up and running on a basic level,
+(Can fetch and display feed entries from DB).
+
 How it works
 ============
 The feeds you wish to monitor is entered into the database, FeedServer can not enter feeds into the database itself,
