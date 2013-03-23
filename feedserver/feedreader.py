@@ -38,8 +38,8 @@ def feed_requester(feed_url):
             "id": entry.get("id", "No Id"),
             "published": mktime(entry.get("published_parsed", time.struct_time)),
             "updated": mktime(entry.get("updated_parsed", time.struct_time)),
-            "description": entry.get("description", "No description"),
-            "content": entry.get("content", [{}])[0].get("value", "No body"),
+            "description": entry.get("description", ""),
+            "content": entry.get("content", [{}])[0].get("value", entry.get("description", "")),
         }
 
         post_list.append(post)

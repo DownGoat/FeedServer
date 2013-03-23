@@ -12,6 +12,7 @@ config = {
     "db_host": "localhost",
     "db_name": "gripper",
     "db_type": "mysql",
+    "db_port": "3306",
 
     "version":      version,
     "User-agent":   "feedserver-v{0}".format(version),
@@ -28,11 +29,12 @@ config = {
     "update_frequency": 1,
 }
 
-config["db_connector"] = "{0}://{1}:{2}@{3}/{4}".format(
+config["db_connector"] = "{0}://{1}:{2}@{3}:{4}/{5}".format(
     config.get("db_type"),
     config.get("db_user"),
     config.get("db_pass"),
     config.get("db_host"),
+    config.get("db_port"),
     config.get("db_name")
 )
 
