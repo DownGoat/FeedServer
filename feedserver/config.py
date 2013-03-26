@@ -40,7 +40,7 @@ config["db_connector"] = "{0}://{1}:{2}@{3}:{4}/{5}".format(
 
 
 logger = logging.getLogger(config.get("log_app"))
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 # create file handler which logs even debug messages
 fh = logging.FileHandler(config.get("log_file", "unkown"))
 fh.setLevel(config.get("log_level"))

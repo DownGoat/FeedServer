@@ -3,6 +3,7 @@ __author__ = 'sis13'
 import Queue
 import logging
 import time
+import threading
 
 from feedserver.config import config
 from feedserver.database import db_session
@@ -65,8 +66,8 @@ class FeedServer():
             self.feed_q.put(feed.feed_url)
 
             db_session.query(Feed).filter_by(id=feed.id).update({
-                        "last_checked": time.time(),
-                    })
+                "last_checked": time.time(),
+            })
 
             logger.debug("Updating feed last_checked: {0}".format(feed.feed_url))
 
@@ -80,11 +81,17 @@ class FeedServer():
             logger.debug("Fetching feeds to update.")
             self.get_feeds()
 
+            logger.debug("There are {0} threads currently active.".format(threading.active_count()))
+
             #Check if threads are still up and running.
             for frt in self.reader_pool:
                 if not frt.is_alive():
                     logger.debug("Thread is not alive, starting a new one. Dead thread:{0}".format(frt))
-                    self.start_reader_thread()
+
+                    if threading.active_count() <= config.get("reader_threads") + 2:
+                        self.start_reader_thread()
+
+                    frt.join()
 
             if not self.db_thread.is_alive():
                 logger.debug("DB thread is not alive, starting new one. Old: {0}".format(self.db_thread))

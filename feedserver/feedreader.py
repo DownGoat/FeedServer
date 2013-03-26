@@ -30,17 +30,27 @@ def feed_requester(feed_url):
         logger.debug("Failed to retrive {0}\n".format(feed_url))
         return None
 
+    if d.bozo:
+        logger.debug("Failed to retrive {0}, Bozo error.\n".format(feed_url))
+        return None
+
     post_list = []
     for entry in d.entries:
-        post = {
-            "title": entry.get("title", "No title"),
-            "link": entry.get("link", "#"),
-            "id": entry.get("id", "No Id"),
-            "published": mktime(entry.get("published_parsed", time.struct_time)),
-            "updated": mktime(entry.get("updated_parsed", time.struct_time)),
-            "description": entry.get("description", ""),
-            "content": entry.get("content", [{}])[0].get("value", entry.get("description", "")),
-        }
+
+        try:
+            post = {
+                "title": entry.get("title", "No title"),
+                "link": entry.get("link", "#"),
+                "id": entry.get("id", "No Id"),
+                "published": mktime(entry.get("published_parsed", time.struct_time)),
+                "updated": mktime(entry.get("updated_parsed", time.struct_time)),
+                "description": entry.get("description", ""),
+                "content": entry.get("content", [{}])[0].get("value", entry.get("description", "")),
+            }
+        except Exception as errno:
+            logger.error(errno)
+
+            continue
 
         post_list.append(post)
 
