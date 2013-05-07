@@ -63,7 +63,7 @@ class FeedServer():
 
         for feed in feeds:
             logger.debug("Putting feed on the queue: {0}".format(feed.feed_url))
-            self.feed_q.put(feed.feed_url)
+            self.feed_q.put(feed)
 
             db_session.query(Feed).filter_by(id=feed.id).update({
                 "last_checked": time.time(),
@@ -75,7 +75,7 @@ class FeedServer():
 
     def run(self):
         """
-            Run method fo the application. Will try and fetch feeds to update once every second..
+            Run method for the application. Will try and fetch feeds to update once every second..
         """
         while True:
             logger.debug("Fetching feeds to update.")

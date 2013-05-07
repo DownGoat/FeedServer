@@ -1,15 +1,15 @@
 from xml.sax import SAXException
-
-__author__ = 'sis13'
-
 import threading
 import Queue
 import time
-
+from urlparse import urlparse
 import logging
 import feedparser
 from time import mktime
 from feedserver.config import config
+from feedserver.database import db_session
+
+__author__ = 'Sindre Smistad'
 
 
 logger = logging.getLogger(config.get("log_app"))
@@ -19,6 +19,8 @@ def feed_requester(feed_url):
     """ This function handles the requesting and parsing of the feed. The feed is requested and parsed using feedparser.
         If the function is successful it will return a list of dicts for each entry in the feed. If the function is not
         successful it shall return None.
+
+        :param feed_url The url of the feed to retrieve.
     """
     d = None
     try:
@@ -54,7 +56,9 @@ def feed_requester(feed_url):
 
         post_list.append(post)
 
-    return feed_url, post_list
+    feed_data = {"parser_object": d, "posts": post_list}
+
+    return feed_data
 
 
 class ReaderThread(threading.Thread):
@@ -78,19 +82,74 @@ class ReaderThread(threading.Thread):
         """
         while not self.stoprequest.isSet():
             try:
-                feed_url = self.feed_q.get(True, 0.05)
+                feed = self.feed_q.get(True, 0.05)
+                feed_url = feed.feed_url
 
                 feed_data = feed_requester(feed_url)
 
-                if feed_data:
-                    self.result_q.put(feed_data)
+                if feed_data.get("posts"):
+                    #The feed persister expects the data in (feed_url, post_list) format.
+                    self.result_q.put((feed_url, feed_data.get("posts")))
 
                 else:
                     self.error_q.put(feed_url)
 
+                #Check if the feed is a new feed.
+                if feed.metadata_update == 1:
+                    logger.debug("{0} is a new feed.".format(feed_url))
+                    self.update_metadata(feed, feed_data)
+
+                elif self.days_since(time.time(), feed.metadata_update) >= config.get("metadata_update"):
+                    self.update_metadata(feed, feed_data)
+
             except Queue.Empty:
                 continue
 
-    def join(self, timeout=None):
+    def update_metadata(self, feed, feed_data):
+        """
+        This method updates the metadata of a feed, this function should be called if the feed is a feed that newly has
+        been added to the system, or if it has been longer than n days since last update. N days is defined in the
+        config. This method returns nothing.
+
+        :param feed The feed object to change the metadata for.
+
+        :param feed_data The resulting dict from a feed_requester call.
+        """
+        parser = feed_data.get("parser_object")
+        feed.last_checked = time.time()
+        feed.metadata_update = time.time()
+        feed.subscribers = 1
+        feed.title = parser.feed.get("title", "Unknown title")
+
+        #Some feeds has a update frequency data, lets have FeedServer be nice and try and follow this.
+        feed.update_frequency = parser.feed.get("sy_updatefrequency", None)
+        if not feed.update_frequency:
+            logger.debug("{0} has not set a updateFrequency.".format(feed.feed_url))
+            feed.update_frequency = 2
+
+        else:
+            try:
+                feed.update_frequency = int(feed.update_frequency)
+            except ValueError:
+                logger.error("Invalid update_frequency value {0} for {1}").format(feed.update_frequency, feed.feed_url)
+
+        netloc = urlparse(feed.feed_url)
+        feed.favicon = "{0}/favicon.ico".format(netloc.netloc)
+
+        # This commit seems to be useless? Does not actually update the feed record.
+        db_session.commit()
+
+    def days_since(self, t1, t2):
+        """
+        Returns the number of days between the two timestamps.
+
+        :param t1 Time one.
+        :param t2 Time two.
+        """
+        seconds_diff = t1 - t2
+        return int(seconds_diff / 86400)  # 86400 is the number of seconds in a day.
+
+
+def join(self, timeout=None):
         self.stoprequest.set()
         super(ReaderThread, self).join(timeout)

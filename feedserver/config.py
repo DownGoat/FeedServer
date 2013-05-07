@@ -27,6 +27,9 @@ config = {
 
     # How often to look for updates in minutes
     "update_frequency": 1,
+
+    # How often to update the metadata information about a feed in days.
+    "metadata_update": 1,
 }
 
 config["db_connector"] = "{0}://{1}:{2}@{3}:{4}/{5}".format(
@@ -40,7 +43,7 @@ config["db_connector"] = "{0}://{1}:{2}@{3}:{4}/{5}".format(
 
 
 logger = logging.getLogger(config.get("log_app"))
-logger.setLevel(logging.INFO)
+logger.setLevel(config.get("log_level"))
 # create file handler which logs even debug messages
 fh = logging.FileHandler(config.get("log_file", "unkown"))
 fh.setLevel(config.get("log_level"))
