@@ -7,10 +7,10 @@ import threading
 import feedserver
 
 from feedserver import feedstorer
-from feedserver import  feedreader
+from feedserver import feedreader
+
 
 class TestFeedstorer(unittest.TestCase):
-
     def setUp(self):
         self.result_q = Queue.Queue()
         self.feed_q = Queue.Queue()
@@ -21,7 +21,7 @@ class TestFeedstorer(unittest.TestCase):
         for t in self.pool:
             t.start()
 
-    """def test_add(self):
+    def test_add(self):
         var = {'updated': 1462247373,
 
                'description': u'For a assignment I needed player/stage, and it turned out installing it is no easy task. A fellow student taking the module made a script for automating the installation, and it should work on Ubuntu 11.04, 12.04, 12.10 and Linux &#8230; <a href="http://downgoat.net/2013/03/02/installing-playerstage-ubuntulinux-mint/">Continue reading <span class="meta-nav">&#8594;</span></a>',
@@ -33,7 +33,9 @@ class TestFeedstorer(unittest.TestCase):
                'published': 1362247373.0,
                'id': 'http://downgoat.net/?p=153'}
 
-        self.result_q.put((self.feed_url, [var]))"""
+        self.result_q.put((self.feed_url, [var]))
+
+
 
     def test_threader(self):
         # TODO write a real test for this.
