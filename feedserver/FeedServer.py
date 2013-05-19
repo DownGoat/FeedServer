@@ -31,7 +31,7 @@ class FeedServer():
         """
         logger.info("Server is now starting.")
         self.result_q = Queue.Queue()
-        self.feed_q = Queue.Queue()
+        self.feed_q = Queue.PriorityQueue()
         self.error_q = Queue.Queue()
 
         #Start the reader threads.
@@ -59,11 +59,13 @@ class FeedServer():
 
         update_time = (time.time()) - (config.get("update_frequency") * 60)
 
-        feeds = db_session.query(Feed).filter(Feed.last_checked <= update_time).all()
+        #TODO add exception handling here. IF NEEDED!
+        feeds = db_session.query(Feed).filter(Feed.last_checked <= int(update_time)).all()
 
         for feed in feeds:
-            logger.debug("Putting feed on the queue: {0}".format(feed.feed_url))
-            self.feed_q.put(feed)
+            logger.debug("Putting feed on the queue: {0} with priority {1}.".format(feed.feed_url, feed.last_checked))
+            db_session.expunge(feed)
+            self.feed_q.put((feed.last_checked, feed))
 
             db_session.query(Feed).filter_by(id=feed.id).update({
                 "last_checked": time.time(),

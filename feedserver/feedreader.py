@@ -7,7 +7,9 @@ import logging
 import feedparser
 from time import mktime
 from feedserver.config import config
-from feedserver.database import db_session
+from feedserver.database import engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
 __author__ = 'Sindre Smistad'
 
@@ -74,6 +76,11 @@ class ReaderThread(threading.Thread):
         self.result_q = result_q
         self.error_q = error_q
         self.stoprequest = threading.Event()
+
+        self.db_session = scoped_session(sessionmaker(autocommit=False,
+                                         autoflush=False,
+                                         bind=engine))
+
         logger.debug("ReaderThread ID:{0} started.".format(threading.current_thread()))
 
     def run(self):
@@ -82,7 +89,8 @@ class ReaderThread(threading.Thread):
         """
         while not self.stoprequest.isSet():
             try:
-                feed = self.feed_q.get(True, 0.05)
+                feed = self.feed_q.get(True, 0.05)[1]
+                self.db_session.add(feed)
                 feed_url = feed.feed_url
 
                 feed_data = feed_requester(feed_url)
@@ -104,6 +112,9 @@ class ReaderThread(threading.Thread):
 
             except Queue.Empty:
                 continue
+
+            finally:
+                self.db_session.commit()
 
     def update_metadata(self, feed, feed_data):
         """
@@ -137,7 +148,7 @@ class ReaderThread(threading.Thread):
         feed.favicon = "{0}/favicon.ico".format(netloc.netloc)
 
         # This commit seems to be useless? Does not actually update the feed record.
-        db_session.commit()
+        self.db_session.commit()
 
     def days_since(self, t1, t2):
         """
