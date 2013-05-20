@@ -27,8 +27,12 @@ def add_entry(entry, feed_id):
     """
     stored_ent = db_session.query(Entry).filter_by(link=entry.get("link")).first()
 
-    #Even if it is in db it might be updated since last time.
-    if stored_ent is not None and stored_ent.updated == entry.get("updated"):
+    # Even if it is in db it might be updated since last time.
+    if stored_ent is not None and stored_ent.updated is entry.get("updated"):
+        return
+
+    # It is not really updated if updated is set to 1.
+    if entry.get("updated") is 1:
         return
 
     if stored_ent:

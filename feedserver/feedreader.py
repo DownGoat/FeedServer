@@ -5,11 +5,9 @@ import time
 from urlparse import urlparse
 import logging
 import feedparser
-from time import mktime
 from feedserver.config import config
 from feedserver.database import engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
 
 __author__ = 'Sindre Smistad'
 
@@ -35,8 +33,10 @@ def feed_requester(feed_url):
         return None
 
     if d.bozo:
-        logger.debug("Failed to retrive {0}, Bozo error.\n".format(feed_url))
-        return None
+        logger.info("{0}, Bozo error: {1}.\n".format(feed_url, d.bozo_exception))
+
+        if not bozo_checker(d.bozo_exception):
+            return None
 
     post_list = []
     for entry in d.entries:
@@ -46,13 +46,13 @@ def feed_requester(feed_url):
                 "title": entry.get("title", "No title"),
                 "link": entry.get("link", "#"),
                 "id": entry.get("id", "No Id"),
-                "published": mktime(entry.get("published_parsed", time.struct_time)),
-                "updated": mktime(entry.get("updated_parsed", time.struct_time)),
+                "published": time_parser(entry.get("published_parsed")),
+                "updated": time_parser(entry.get("updated_parsed"), update_time=True),
                 "description": entry.get("description", ""),
                 "content": entry.get("content", [{}])[0].get("value", entry.get("description", "")),
             }
         except Exception as errno:
-            logger.error(errno)
+            logger.error("Something went wrong in feed_requester: {0}".format(errno))
 
             continue
 
@@ -61,6 +61,52 @@ def feed_requester(feed_url):
     feed_data = {"parser_object": d, "posts": post_list}
 
     return feed_data
+
+
+def time_parser(time_str, update_time=False):
+    """
+    This function parses the time str from feedparser. Feeds may not
+    always include the time for update, and published. So if it is
+    in the feed the current time will be set for those values.
+
+    If the update time is missing for the feed the function will set it
+    to 1. If the current time is used it will end up wrong in the DB if
+    the entry already exist in the DB.
+
+    :param time_str The time str to be parsed.
+
+    :param update_time Set to true if it is the update time that is parsed.
+
+    :return UNIX timestamp
+    """
+
+    if time_str is None:
+        if update_time:
+            return 1
+        else:
+            return time.time()
+
+    else:
+        return time.mktime(time_str)
+
+
+def bozo_checker(bozo_exception):
+    """
+    This function checks if the bozo exception is a critical exception or
+    a exception that can be ignored.
+
+    :param bozo_exception The bozo exception to test.
+    """
+    # Will return false by default, so only whitelisted exceptions will
+    # return true.
+    return_val = False
+
+    # This exception is raised when the feed was decoded and parsed using a different encoding than what the server/feed
+    # itself claimed it to be.
+    if isinstance(bozo_exception, feedparser.CharacterEncodingOverride):
+        return_val = True
+
+    return return_val
 
 
 class ReaderThread(threading.Thread):
@@ -95,20 +141,19 @@ class ReaderThread(threading.Thread):
 
                 feed_data = feed_requester(feed_url)
 
-                if feed_data.get("posts"):
+                if feed_data is not None and feed_data.get("posts"):
                     #The feed persister expects the data in (feed_url, post_list) format.
                     self.result_q.put((feed_url, feed_data.get("posts")))
 
+                    #Check if the feed is a new feed.
+                    if feed.metadata_update is 1:
+                        logger.debug("{0} is a new feed.".format(feed_url))
+                        self.update_metadata(feed, feed_data)
+
+                    elif self.days_since(time.time(), feed.metadata_update) >= config.get("metadata_update"):
+                        self.update_metadata(feed, feed_data)
                 else:
                     self.error_q.put(feed_url)
-
-                #Check if the feed is a new feed.
-                if feed.metadata_update == 1:
-                    logger.debug("{0} is a new feed.".format(feed_url))
-                    self.update_metadata(feed, feed_data)
-
-                elif self.days_since(time.time(), feed.metadata_update) >= config.get("metadata_update"):
-                    self.update_metadata(feed, feed_data)
 
             except Queue.Empty:
                 continue
